@@ -169,7 +169,7 @@ const Feeds = () => {
               <ListboxSection showDivider>
                 <ListboxItem
                   key={''}
-                  href={`/feeds`}
+                  href={`/dash/feeds`}
                   className={isActive('') ? 'bg-primary-50 text-primary' : ''}
                   startContent={<Avatar name="ALL"></Avatar>}
                 >
@@ -181,7 +181,7 @@ const Feeds = () => {
                 {feedData?.items.map((item) => {
                   return (
                     <ListboxItem
-                      href={`/feeds/${item.id}`}
+                      href={`/dash/feeds/${item.id}`}
                       className={
                         isActive(item.id) ? 'bg-primary-50 text-primary' : ''
                       }
@@ -237,7 +237,7 @@ const Feeds = () => {
                     <Tooltip
                       content={
                         inProgressHistoryMp?.id === currentMpInfo.id
-                          ? `正在获取第${inProgressHistoryMp.page}页...`
+                          ? `正在获取第${inProgressHistoryMp?.page || 1}页...`
                           : `历史文章需要分批次拉取，请耐心等候，频繁调用可能会导致一段时间内不可用`
                       }
                       color={

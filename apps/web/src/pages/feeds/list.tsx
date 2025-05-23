@@ -15,6 +15,13 @@ import { trpc } from '@web/utils/trpc';
 import dayjs from 'dayjs';
 import { useParams } from 'react-router-dom';
 
+interface Article {
+  id: string;
+  title: string;
+  publishTime: number;
+  [key: string]: any;
+}
+
 const ArticleList: FC = () => {
   const { id } = useParams();
 
@@ -31,12 +38,11 @@ const ArticleList: FC = () => {
       },
     );
 
-  const items = useMemo(() => {
-    const items = data
-      ? data.pages.reduce((acc, page) => [...acc, ...page.items], [] as any[])
-      : [];
-
-    return items;
+  const items: Article[] = useMemo(() => {
+    if (!data) return [];
+    return data.pages.reduce<Article[]>((acc, page) => {
+      return [...acc, ...(page.items as Article[])];
+    }, []);
   }, [data]);
 
   return (
@@ -73,10 +79,10 @@ const ArticleList: FC = () => {
         <TableBody
           isLoading={isLoading}
           emptyContent={'暂无数据'}
-          items={items || []}
+          items={items}
           loadingContent={<Spinner />}
         >
-          {(item) => (
+          {(item: Article) => (
             <TableRow key={item.id}>
               {(columnKey) => {
                 let value = getKeyValue(item, columnKey);
