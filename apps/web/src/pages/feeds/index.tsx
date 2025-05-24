@@ -15,6 +15,7 @@ import {
   Tooltip,
   useDisclosure,
   Link,
+  Checkbox,
 } from '@nextui-org/react';
 import { PlusIcon } from '@web/components/PlusIcon';
 import { trpc } from '@web/utils/trpc';
@@ -24,13 +25,31 @@ import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import { serverOriginUrl } from '@web/utils/env';
 import ArticleList from './list';
+import FolderManager from '@web/components/FolderManager';
+import FeedMover from '@web/components/FeedMover';
 
 const Feeds = () => {
   const { id } = useParams();
 
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+  const { isOpen: isMoverOpen, onOpen: onMoverOpen, onClose: onMoverClose } = useDisclosure();
+  
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [selectedFeedIds, setSelectedFeedIds] = useState<string[]>([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  // 根据文件夹过滤条件构建查询参数
+  const feedQueryParams = useMemo(() => {
+    if (selectedFolderId === 'uncategorized') {
+      return { folderId: null };
+    } else if (selectedFolderId) {
+      return { folderId: selectedFolderId };
+    }
+    return {};
+  }, [selectedFolderId]);
+
   const { refetch: refetchFeedList, data: feedData } = trpc.feed.list.useQuery(
-    {},
+    feedQueryParams,
     {
       refetchOnWindowFocus: true,
     },
@@ -71,6 +90,45 @@ const Feeds = () => {
 
   const [currentMpId, setCurrentMpId] = useState(id || '');
 
+  // 处理文件夹选择
+  const handleFolderSelect = (folderId: string | null) => {
+    setSelectedFolderId(folderId);
+    setCurrentMpId(''); // 清空当前选中的订阅源
+    setIsSelectionMode(false); // 退出选择模式
+    setSelectedFeedIds([]); // 清空选择
+  };
+
+  // 处理选择模式切换
+  const handleToggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedFeedIds([]);
+  };
+
+  // 处理单个订阅源选择
+  const handleFeedSelection = (feedId: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedFeedIds(prev => [...prev, feedId]);
+    } else {
+      setSelectedFeedIds(prev => prev.filter(id => id !== feedId));
+    }
+  };
+
+  // 处理全选/取消全选
+  const handleSelectAll = () => {
+    if (selectedFeedIds.length === (feedData?.items.length || 0)) {
+      setSelectedFeedIds([]);
+    } else {
+      setSelectedFeedIds(feedData?.items.map(item => item.id) || []);
+    }
+  };
+
+  // 批量移动完成后的回调
+  const handleMoveSuccess = () => {
+    setSelectedFeedIds([]);
+    setIsSelectionMode(false);
+    refetchFeedList();
+  };
+
   const handleConfirm = async () => {
     console.log('wxsLink', wxsLink);
     // TODO show operation in progress
@@ -87,6 +145,8 @@ const Feeds = () => {
           mpIntro: item.intro,
           updateTime: item.updateTime,
           status: 1,
+          // 如果当前选中了文件夹，添加订阅源时自动分配到该文件夹
+          folderId: selectedFolderId && selectedFolderId !== 'uncategorized' ? selectedFolderId : undefined,
         });
         await refreshMpArticles({ mpId: item.id });
         toast.success('添加成功', {
@@ -145,7 +205,13 @@ const Feeds = () => {
   return (
     <>
       <div className="h-full flex justify-between">
-        <div className="w-64 p-4 h-full">
+        <div className="w-64 p-4 h-full flex flex-col">
+          {/* 文件夹管理器 */}
+          <FolderManager 
+            selectedFolderId={selectedFolderId}
+            onFolderSelect={handleFolderSelect}
+          />
+          
           <div className="pb-4 flex justify-between align-middle items-center">
             <Button
               color="primary"
@@ -160,48 +226,105 @@ const Feeds = () => {
             </div>
           </div>
 
-          {feedData?.items ? (
-            <Listbox
-              aria-label="订阅源"
-              emptyContent="暂无订阅"
-              onAction={(key) => setCurrentMpId(key as string)}
-            >
-              <ListboxSection showDivider>
-                <ListboxItem
-                  key={''}
-                  href={`/dash/feeds`}
-                  className={isActive('') ? 'bg-primary-50 text-primary' : ''}
-                  startContent={<Avatar name="ALL"></Avatar>}
-                >
-                  全部
-                </ListboxItem>
-              </ListboxSection>
-
-              <ListboxSection className="overflow-y-auto h-[calc(100vh-260px)]">
-                {feedData?.items.map((item) => {
-                  return (
-                    <ListboxItem
-                      href={`/dash/feeds/${item.id}`}
-                      className={
-                        isActive(item.id) ? 'bg-primary-50 text-primary' : ''
-                      }
-                      key={item.id}
-                      startContent={<Avatar src={item.mpCover}></Avatar>}
+          {/* 批量操作工具栏 */}
+          {feedData?.items && feedData.items.length > 0 && (
+            <div className="pb-2 flex justify-between items-center">
+              <Button 
+                size="sm" 
+                variant="light"
+                onPress={handleToggleSelectionMode}
+              >
+                {isSelectionMode ? '取消选择' : '批量选择'}
+              </Button>
+              
+              {isSelectionMode && (
+                <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="light"
+                    onPress={handleSelectAll}
+                  >
+                    {selectedFeedIds.length === feedData.items.length ? '取消全选' : '全选'}
+                  </Button>
+                  {selectedFeedIds.length > 0 && (
+                    <Button 
+                      size="sm" 
+                      color="primary"
+                      onPress={onMoverOpen}
                     >
-                      {item.mpName}
+                      移动({selectedFeedIds.length})
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {feedData?.items ? (
+            <div className="flex-1 overflow-y-auto">
+              <Listbox
+                aria-label="订阅源"
+                emptyContent="暂无订阅"
+                onAction={(key) => !isSelectionMode && setCurrentMpId(key as string)}
+                selectionMode="none"
+              >
+                {/* 只有在显示全部时才显示"全部"选项 */}
+                {!selectedFolderId && (
+                  <ListboxSection showDivider>
+                    <ListboxItem
+                      key={''}
+                      href={`/dash/feeds`}
+                      className={isActive('') ? 'bg-primary-50 text-primary' : ''}
+                      startContent={<Avatar name="ALL"></Avatar>}
+                    >
+                      全部
                     </ListboxItem>
-                  );
-                }) || []}
-              </ListboxSection>
-            </Listbox>
+                  </ListboxSection>
+                )}
+
+                <ListboxSection>
+                  {feedData?.items.map((item) => {
+                    const isSelected = selectedFeedIds.includes(item.id);
+                    return (
+                      <ListboxItem
+                        key={item.id}
+                        href={!isSelectionMode ? `/dash/feeds/${item.id}` : undefined}
+                        className={
+                          isActive(item.id) ? 'bg-primary-50 text-primary' : ''
+                        }
+                        startContent={
+                          isSelectionMode ? (
+                            <Checkbox
+                              isSelected={isSelected}
+                              onValueChange={(checked) => handleFeedSelection(item.id, checked)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <Avatar src={item.mpCover}></Avatar>
+                          )
+                        }
+                        onClick={isSelectionMode ? (e) => {
+                          e.preventDefault();
+                          handleFeedSelection(item.id, !isSelected);
+                        } : undefined}
+                      >
+                        {item.mpName}
+                      </ListboxItem>
+                    );
+                  }) || []}
+                </ListboxSection>
+              </Listbox>
+            </div>
           ) : (
             ''
           )}
         </div>
+        
+        {/* 主内容区域保持不变 */}
         <div className="flex-1 h-full flex flex-col">
           <div className="p-4 pb-0 flex justify-between">
             <h3 className="text-medium font-mono flex-1 overflow-hidden text-ellipsis break-keep text-nowrap pr-1">
-              {currentMpInfo?.mpName || '全部'}
+              {currentMpInfo?.mpName || (selectedFolderId === 'uncategorized' ? '未分类' : selectedFolderId ? '文件夹内容' : '全部')}
             </h3>
             {currentMpInfo ? (
               <div className="flex h-5 items-center space-x-4 text-small">
@@ -312,7 +435,7 @@ const Feeds = () => {
                       ev.stopPropagation();
 
                       if (window.confirm('确定删除吗？')) {
-                        await deleteFeed(currentMpInfo.id);
+                        await deleteFeed(currentMpId);
                         navigate('/feeds');
                         await refetchFeedList();
                       }
@@ -392,6 +515,7 @@ const Feeds = () => {
           </div>
         </div>
       </div>
+      
       <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
         <ModalContent>
           {(onClose) => (
@@ -432,6 +556,14 @@ const Feeds = () => {
           )}
         </ModalContent>
       </Modal>
+
+      {/* 批量移动订阅源弹窗 */}
+      <FeedMover
+        isOpen={isMoverOpen}
+        onClose={onMoverClose}
+        feedIds={selectedFeedIds}
+        onSuccess={handleMoveSuccess}
+      />
     </>
   );
 };

@@ -21,6 +21,21 @@ model Account {
   @@map("accounts")
 }
 
+// 文件夹分类
+model Folder {
+  id        String   @id @default(cuid())
+  name      String   @map("name")
+  // 排序权重，数字越大排在前面
+  order     Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // 关联的订阅源
+  feeds Feed[]
+
+  @@map("folders")
+}
+
 // 订阅源
 model Feed {
   id      String @id
@@ -41,6 +56,10 @@ model Feed {
 
   // 是否有历史文章 1 是  0 否
   hasHistory Int? @default(1) @map("has_history")
+
+  // 文件夹关联（可选）
+  folderId String? @map("folder_id")
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@map("feeds")
 }

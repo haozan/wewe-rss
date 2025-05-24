@@ -138,15 +138,19 @@ export class TrpcRouter {
         z.object({
           limit: z.number().min(1).max(1000).nullish(),
           cursor: z.string().nullish(),
+          folderId: z.string().nullish(),
         }),
       )
       .query(async ({ input }) => {
         const limit = input.limit ?? 1000;
-        const { cursor } = input;
+        const { cursor, folderId } = input;
 
         const items = await this.prismaService.feed.findMany({
           take: limit + 1,
-          where: {},
+          where: folderId ? ({ folderId } as any) : undefined,
+          include: {
+            folder: true,
+          } as any,
           cursor: cursor
             ? {
                 id: cursor,
@@ -175,6 +179,9 @@ export class TrpcRouter {
       .query(async ({ input: id }) => {
         const feed = await this.prismaService.feed.findUnique({
           where: { id },
+          include: {
+            folder: true,
+          } as any,
         });
         if (!feed) {
           throw new TRPCError({
@@ -197,6 +204,7 @@ export class TrpcRouter {
             .default(Math.floor(Date.now() / 1e3)),
           updateTime: z.number(),
           status: z.number().default(statusMap.ENABLE),
+          folderId: z.string().optional(),
         }),
       )
       .mutation(async ({ input }) => {
@@ -222,6 +230,7 @@ export class TrpcRouter {
             syncTime: z.number().optional(),
             updateTime: z.number().optional(),
             status: z.number().optional(),
+            folderId: z.string().nullable().optional(),
           }),
         }),
       )
@@ -230,6 +239,9 @@ export class TrpcRouter {
         const feed = await this.prismaService.feed.update({
           where: { id },
           data,
+          include: {
+            folder: true,
+          } as any,
         });
         return feed;
       }),
@@ -273,6 +285,158 @@ export class TrpcRouter {
         return this.trpcService.inProgressHistoryMp;
       },
     ),
+  });
+
+  folderRouter = this.trpcService.router({
+    list: this.trpcService.protectedProcedure
+      .input(
+        z.object({
+          limit: z.number().min(1).max(1000).nullish(),
+          cursor: z.string().nullish(),
+        }),
+      )
+      .query(async ({ input }) => {
+        const limit = input.limit ?? 1000;
+        const { cursor } = input;
+
+        const items = await (this.prismaService as any).folder.findMany({
+          take: limit + 1,
+          include: {
+            feeds: {
+              select: {
+                id: true,
+                mpName: true,
+              },
+            },
+            _count: {
+              select: {
+                feeds: true,
+              },
+            },
+          },
+          cursor: cursor
+            ? {
+                id: cursor,
+              }
+            : undefined,
+          orderBy: [
+            {
+              order: 'desc',
+            },
+            {
+              createdAt: 'asc',
+            },
+          ],
+        });
+        let nextCursor: typeof cursor | undefined = undefined;
+        if (items.length > limit) {
+          // Remove the last item and use it as next cursor
+
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const nextItem = items.pop()!;
+          nextCursor = nextItem.id;
+        }
+
+        return {
+          items: items,
+          nextCursor,
+        };
+      }),
+    byId: this.trpcService.protectedProcedure
+      .input(z.string())
+      .query(async ({ input: id }) => {
+        const folder = await (this.prismaService as any).folder.findUnique({
+          where: { id },
+          include: {
+            feeds: true,
+            _count: {
+              select: {
+                feeds: true,
+              },
+            },
+          },
+        });
+        if (!folder) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `No folder with id '${id}'`,
+          });
+        }
+        return folder;
+      }),
+    add: this.trpcService.protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(50),
+          order: z.number().default(0),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const folder = await (this.prismaService as any).folder.create({
+          data: input,
+          include: {
+            _count: {
+              select: {
+                feeds: true,
+              },
+            },
+          },
+        });
+        return folder;
+      }),
+    edit: this.trpcService.protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          data: z.object({
+            name: z.string().min(1).max(50).optional(),
+            order: z.number().optional(),
+          }),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const { id, data } = input;
+        const folder = await (this.prismaService as any).folder.update({
+          where: { id },
+          data,
+          include: {
+            _count: {
+              select: {
+                feeds: true,
+              },
+            },
+          },
+        });
+        return folder;
+      }),
+    delete: this.trpcService.protectedProcedure
+      .input(z.string())
+      .mutation(async ({ input: id }) => {
+        // 删除文件夹前，将关联的feeds的folderId设为null
+        await this.prismaService.feed.updateMany({
+          where: { folderId: id } as any,
+          data: { folderId: null } as any,
+        });
+
+        await (this.prismaService as any).folder.delete({ where: { id } });
+        return id;
+      }),
+    // 批量移动订阅源到文件夹
+    moveFeedsToFolder: this.trpcService.protectedProcedure
+      .input(
+        z.object({
+          feedIds: z.array(z.string()),
+          folderId: z.string().nullable(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const { feedIds, folderId } = input;
+        await this.prismaService.feed.updateMany({
+          where: { id: { in: feedIds } },
+          data: { folderId } as any,
+        });
+        return true;
+      }),
   });
 
   articleRouter = this.trpcService.router({
@@ -422,6 +586,7 @@ export class TrpcRouter {
     account: this.accountRouter,
     article: this.articleRouter,
     platform: this.platformRouter,
+    folder: this.folderRouter,
   });
 
   async applyMiddleware(app: INestApplication) {
