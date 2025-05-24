@@ -29,7 +29,7 @@ const FolderManager = ({ onFolderSelect, selectedFolderId }: FolderManagerProps)
   const [editingFolder, setEditingFolder] = useState<any>(null);
 
   const { data: foldersData, refetch: refetchFolders } = trpc.folder.list.useQuery({});
-  const { data: feedData } = trpc.feed.list.useQuery({});
+  const { data: uncategorizedFeeds } = trpc.feed.list.useQuery({ folderId: 'uncategorized' });
   const { mutateAsync: addFolder, isLoading: isAddingFolder } = trpc.folder.add.useMutation();
   const { mutateAsync: editFolder, isLoading: isEditingFolder } = trpc.folder.edit.useMutation();
   const { mutateAsync: deleteFolder } = trpc.folder.delete.useMutation();
@@ -132,7 +132,7 @@ const FolderManager = ({ onFolderSelect, selectedFolderId }: FolderManagerProps)
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <span className="text-sm">📂 未分类</span>
               <Chip size="sm" variant="flat" className="text-xs">
-                {feedData?.items?.filter(feed => !feed.folderId).length || 0}
+                {uncategorizedFeeds?.items?.length || 0}
               </Chip>
             </div>
           </div>

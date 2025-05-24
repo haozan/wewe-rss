@@ -41,7 +41,7 @@ const Feeds = () => {
   // 根据文件夹过滤条件构建查询参数
   const feedQueryParams = useMemo(() => {
     if (selectedFolderId === 'uncategorized') {
-      return { folderId: null };
+      return { folderId: 'uncategorized' };
     } else if (selectedFolderId) {
       return { folderId: selectedFolderId };
     }
@@ -262,36 +262,36 @@ const Feeds = () => {
 
           {feedData?.items ? (
             <div className="flex-1 overflow-y-auto">
-              <Listbox
-                aria-label="订阅源"
-                emptyContent="暂无订阅"
+            <Listbox
+              aria-label="订阅源"
+              emptyContent="暂无订阅"
                 onAction={(key) => !isSelectionMode && setCurrentMpId(key as string)}
                 selectionMode="none"
-              >
+            >
                 {/* 只有在显示全部时才显示"全部"选项 */}
                 {!selectedFolderId && (
-                  <ListboxSection showDivider>
-                    <ListboxItem
-                      key={''}
+              <ListboxSection showDivider>
+                <ListboxItem
+                  key={''}
                       href={`/dash/feeds`}
-                      className={isActive('') ? 'bg-primary-50 text-primary' : ''}
-                      startContent={<Avatar name="ALL"></Avatar>}
-                    >
-                      全部
-                    </ListboxItem>
-                  </ListboxSection>
+                  className={isActive('') ? 'bg-primary-50 text-primary' : ''}
+                  startContent={<Avatar name="ALL"></Avatar>}
+                >
+                  全部
+                </ListboxItem>
+              </ListboxSection>
                 )}
 
                 <ListboxSection>
-                  {feedData?.items.map((item) => {
+                {feedData?.items.map((item) => {
                     const isSelected = selectedFeedIds.includes(item.id);
-                    return (
-                      <ListboxItem
+                  return (
+                    <ListboxItem
                         key={item.id}
                         href={!isSelectionMode ? `/dash/feeds/${item.id}` : undefined}
-                        className={
-                          isActive(item.id) ? 'bg-primary-50 text-primary' : ''
-                        }
+                      className={
+                        isActive(item.id) ? 'bg-primary-50 text-primary' : ''
+                      }
                         startContent={
                           isSelectionMode ? (
                             <Checkbox
@@ -307,13 +307,13 @@ const Feeds = () => {
                           e.preventDefault();
                           handleFeedSelection(item.id, !isSelected);
                         } : undefined}
-                      >
-                        {item.mpName}
-                      </ListboxItem>
-                    );
-                  }) || []}
-                </ListboxSection>
-              </Listbox>
+                    >
+                      {item.mpName}
+                    </ListboxItem>
+                  );
+                }) || []}
+              </ListboxSection>
+            </Listbox>
             </div>
           ) : (
             ''
