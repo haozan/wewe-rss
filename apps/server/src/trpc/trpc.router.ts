@@ -147,10 +147,13 @@ export class TrpcRouter {
 
         const items = await this.prismaService.feed.findMany({
           take: limit + 1,
-          where: folderId ? ({ folderId } as any) : undefined,
+          where: {
+            folderId:
+              folderId === 'uncategorized' ? null : folderId || undefined,
+          },
           include: {
             folder: true,
-          } as any,
+          },
           cursor: cursor
             ? {
                 id: cursor,
