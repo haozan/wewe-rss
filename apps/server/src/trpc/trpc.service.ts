@@ -172,7 +172,28 @@ export class TrpcService {
   }
 
   async refreshMpArticlesAndUpdateFeed(mpId: string, page = 1) {
+    // 先获取文章列表
     const articles = await this.getMpArticles(mpId, page);
+
+    // 如果有文章，使用第一篇文章的链接来获取公众号信息
+    if (articles.length > 0) {
+      const firstArticle = articles[0];
+      const url = `https://mp.weixin.qq.com/s/${firstArticle.id}`;
+      const mpInfo = await this.getMpInfo(url);
+      if (mpInfo && mpInfo.length > 0) {
+        const item = mpInfo[0];
+        // 更新公众号基本信息
+        await this.prismaService.feed.update({
+          where: { id: mpId },
+          data: {
+            mpName: item.name,
+            mpCover: item.cover,
+            mpIntro: item.intro,
+            updateTime: item.updateTime,
+          },
+        });
+      }
+    }
 
     if (articles.length > 0) {
       let results;
