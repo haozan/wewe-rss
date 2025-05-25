@@ -269,19 +269,6 @@ const Feeds = () => {
               onAction={(key) => !isSelectionMode && setCurrentMpId(key as string)}
               selectionMode="none"
             >
-              {!selectedFolderId ? (
-                <ListboxSection showDivider>
-                  <ListboxItem
-                    key={''}
-                    href={`/dash/feeds`}
-                    className={isActive('') ? 'bg-primary-50 text-primary' : ''}
-                    startContent={<Avatar name="ALL"></Avatar>}
-                  >
-                    全部
-                  </ListboxItem>
-                </ListboxSection>
-              ) : null}
-
               <ListboxSection>
                 {feedData?.items?.map((item) => {
                   const isSelected = selectedFeedIds.includes(item.id);
