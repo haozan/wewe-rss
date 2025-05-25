@@ -60,11 +60,13 @@ const FolderManager = ({ onFolderSelect, selectedFolderId }: FolderManagerProps)
       onClose();
       refetchFolders();
     } catch (error) {
+      console.error('Error:', error);
       toast.error(editingFolder ? '更新文件夹失败' : '创建文件夹失败');
     }
   };
 
   const handleEditFolder = (folder: any) => {
+    console.log('Editing folder:', folder);
     setEditingFolder(folder);
     setFolderName(folder.name);
     onOpen();
@@ -168,20 +170,14 @@ const FolderManager = ({ onFolderSelect, selectedFolderId }: FolderManagerProps)
                 <DropdownMenu>
                   <DropdownItem
                     key="edit"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditFolder(folder);
-                    }}
+                    onPress={() => handleEditFolder(folder)}
                   >
                     编辑
                   </DropdownItem>
                   <DropdownItem
                     key="delete"
                     color="danger"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFolder(folder.id);
-                    }}
+                    onPress={() => handleDeleteFolder(folder.id)}
                   >
                     删除
                   </DropdownItem>

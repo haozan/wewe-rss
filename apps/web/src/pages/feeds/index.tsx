@@ -127,6 +127,7 @@ const Feeds = () => {
     setSelectedFeedIds([]);
     setIsSelectionMode(false);
     refetchFeedList();
+    queryUtils.folder.list.invalidate();
   };
 
   const handleConfirm = async () => {
