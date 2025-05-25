@@ -265,53 +265,56 @@ const Feeds = () => {
             <Listbox
               aria-label="订阅源"
               emptyContent="暂无订阅"
-                onAction={(key) => !isSelectionMode && setCurrentMpId(key as string)}
-                selectionMode="none"
+              onAction={(key) => !isSelectionMode && setCurrentMpId(key as string)}
+              selectionMode="none"
             >
-                {/* 只有在显示全部时才显示"全部"选项 */}
-                {!selectedFolderId && (
-              <ListboxSection showDivider>
-                <ListboxItem
-                  key={''}
-                      href={`/dash/feeds`}
-                  className={isActive('') ? 'bg-primary-50 text-primary' : ''}
-                  startContent={<Avatar name="ALL"></Avatar>}
-                >
-                  全部
-                </ListboxItem>
-              </ListboxSection>
-                )}
+              {!selectedFolderId ? (
+                <ListboxSection showDivider>
+                  <ListboxItem
+                    key={''}
+                    href={`/dash/feeds`}
+                    className={isActive('') ? 'bg-primary-50 text-primary' : ''}
+                    startContent={<Avatar name="ALL"></Avatar>}
+                  >
+                    全部
+                  </ListboxItem>
+                </ListboxSection>
+              ) : null}
 
-                <ListboxSection>
-                {feedData?.items.map((item) => {
-                    const isSelected = selectedFeedIds.includes(item.id);
+              <ListboxSection>
+                {feedData?.items?.map((item) => {
+                  const isSelected = selectedFeedIds.includes(item.id);
                   return (
                     <ListboxItem
-                        key={item.id}
-                        href={!isSelectionMode ? `/dash/feeds/${item.id}` : undefined}
+                      key={item.id}
+                      href={undefined}
                       className={
                         isActive(item.id) ? 'bg-primary-50 text-primary' : ''
                       }
-                        startContent={
-                          isSelectionMode ? (
-                            <Checkbox
-                              isSelected={isSelected}
-                              onValueChange={(checked) => handleFeedSelection(item.id, checked)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            <Avatar src={item.mpCover}></Avatar>
-                          )
-                        }
-                        onClick={isSelectionMode ? (e) => {
-                          e.preventDefault();
-                          handleFeedSelection(item.id, !isSelected);
-                        } : undefined}
+                      startContent={
+                        isSelectionMode ? (
+                          <Checkbox
+                            isSelected={isSelected}
+                            onValueChange={(checked) => handleFeedSelection(item.id, checked)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <Avatar src={item.mpCover}></Avatar>
+                        )
+                      }
+                      onClick={isSelectionMode ? (e) => {
+                        e.preventDefault();
+                        handleFeedSelection(item.id, !isSelected);
+                      } : (e) => {
+                        e.preventDefault();
+                        setCurrentMpId(item.id);
+                        navigate(`/feeds/${item.id}`);
+                      }}
                     >
                       {item.mpName}
                     </ListboxItem>
                   );
-                }) || []}
+                })}
               </ListboxSection>
             </Listbox>
             </div>
